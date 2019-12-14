@@ -5,6 +5,7 @@ import random
 import sys
 
 from keras.preprocessing import sequence
+from keras.callbacks import LambdaCallback
 from keras.models import Sequential
 from keras.layers import Dense, Embedding, LSTM, Bidirectional, Conv1D
 
@@ -75,14 +76,22 @@ def make_sequences(text):
         next_chars.append(text[i+MAXLEN])
     return sents, next_chars
 
-def vectorize(sents, next_chars, vocab):
-    ind_char, char_ind = make_dics(vocab)
-    x = np.zeros((len(sents), MAXLEN, len(vocab)), dtype=np.bool)
-    y = np.zeros((len(sents),len(vocab)),dtype=np.bool)
+def make_all_sequences(corpus):
+    ls_sents = []
+    ls_chars = []
+    for text in corpus:
+        sents, chars = make_sequences(text)
+        ls_sents.extend(sents)
+        ls_chars.extend(chars)
+    return ls_sents, ls_chars
+
+def vectorize(sents, next_chars, vocab, char_ind):
+    x = np.zeros((len(sents), MAXLEN, len(vocab)), dtype=np.bool) # sents = wieviele Sätze, MAXLEN = Wieviele character in den Sätzen, VOCAB = für One-Hot encoding der character
+    y = np.zeros((len(sents), len(vocab)), dtype=np.bool)
     for ind, sent in enumerate(sents):
         for sub, char in enumerate(sent):
-            x[ind, sub, char_ind[char]] = 1
-            y[ind, char_ind[next_chars[ind]]]
+            x[ind, sub, char_ind[char]] = 1 # for each sent, each char, make a 1 at the char's indice of the vocabulry
+            y[ind, char_ind[next_chars[ind]]] # for each sent, mark in the one hot vector the indice of the char that follows on the sent
     return x, y
 
 
@@ -118,19 +127,19 @@ def on_epoch_end(epoch, _, text, vocab, model, indices_char):
         print('----- temperature:', temperature)
 
         generated = ''
-        sentence = text[start_index: start_index + MAXLEN]
+        sentence = text[start_index: start_index + MAXLEN] # generate sequence from text with MAXLEN
         generated += sentence
         print('----- Generating with seed: "' + sentence + '"')
         sys.stdout.write(generated)
 
         for i in range(400):
-            x_pred = np.zeros((1, MAXLEN, len(vocab)))
+            x_pred = np.zeros((1, MAXLEN, len(vocab))) # dim 1 x 40 X 60
             for t, char in enumerate(sentence):
-                x_pred[0, t, char_indices[char]] = 1.
+                x_pred[0, t, char_indices[char]] = 1. # for each char in the sampled sent, mark the vectors
 
-            preds = model.predict(x_pred, verbose=0)[0]
-            next_index = sample(preds, temperature)
-            next_char = indices_char[next_index]
+            preds = model.predict(x_pred, verbose=0)[0] # pass the vector to the NN make a prediction
+            next_index = sample(preds, temperature) # pass the predictions to the sample function
+            next_char = indices_char[next_index] # to reverse the one-hot-encoding process
 
             generated += next_char
             sentence = sentence[1:] + next_char
@@ -138,3 +147,7 @@ def on_epoch_end(epoch, _, text, vocab, model, indices_char):
             sys.stdout.write(next_char)
             sys.stdout.flush()
         print()
+
+def fit_model(model, x, y):
+    print_callback = LambdaCallback(on_epoch_end=on_epoch_end)
+    model.fit(x, y, batch_size=128, epochs=60, callbacks=[print_callback])
