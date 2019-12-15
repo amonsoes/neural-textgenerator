@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 import random
 import sys
+import re
 
 from keras.preprocessing import sequence
 from keras.callbacks import LambdaCallback
@@ -22,7 +23,7 @@ EPOCHS = 60
 # ========= i/o ===============
 
 
-def import_dir(path="./files/"):
+def import_dir(path="./data/"):
     ls = []
     for _,_, files in os.walk(path):
         for file in files:
@@ -33,6 +34,10 @@ def import_dir(path="./files/"):
 def import_file(path):
     with open(path, "r", encoding="utf-8") as f:
         text = f.read()
+        re.sub(r"ä", "ae", text)
+        re.sub(r"ö", "oe", text)
+        re.sub(r"ü", "ue", text)
+        re.sub(r"[^\x00-\x7F]+", r"", text)
     return text
 
 def export_model(model, path="./model"):
@@ -54,16 +59,13 @@ def split_data(ls):
 
 
 # ======== preprocessing =======
-    
 
-def vocabulary_for_text(text):
-    return sorted(list(set(text)))
 
 def vocabulary_for_corpus(ls):
-    vocab = []
+    vocab = set()
     for text in ls:
-        vocab.extend(vocabulary_for_text(text))
-    return sorted(vocab)
+        vocab = vocab | set(text)
+    return sorted(list(vocab))
 
 def make_dics(vocab):
     return {ind:i for ind, i in enumerate(vocab)}, {i:ind for ind, i in enumerate(vocab)}
