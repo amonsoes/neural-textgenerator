@@ -111,12 +111,12 @@ def make_model(vocab):
 def sample(preds, temperature=1.0):
     """
     preds: output neurons of NN
-    temperature : introduce randomness to model, to make the tg less conservative
+    temperature : make random sampling from distribution more(< 1)/less(> 1) conservative
     """
-    preds = np.log(np.asarray(preds).astype("float64")) / temperature
+    preds = np.log(np.asarray(preds).astype("float64")) / temperature # the higher the temerature, the less correct but more diverse our results will be -//- vice versa 
     exp_preds = np.exp(preds)
     preds = exp_preds/ np.sum(exp_preds)
-    probs = np.random.multinomial(1, preds, 1)
+    probs = np.random.multinomial(1, preds, 1) # 1 , sample of the predicted probability vec, 1 time
     return np.argmax(probs)
 
 def on_epoch_end(epoch, _, text, vocab, model, indices_char):
